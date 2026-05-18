@@ -21,6 +21,7 @@
 
 ## Ghi chú
 
-- Contract được hoàn thiện theo Pair 10 — Access Gate -> Core Business.
+- Contract được hoàn thiện theo Pair 01 — Camera Stream A2 -> AI Vision A4.
+- Người thực hiện: Nguyễn Đức Anh — MSV 1771020050 — Nhóm 4.
 - Đã kiểm thử Prism bằng `bash scripts/test_mock_with_curl.sh` với 5 request mẫu và tất cả đều trả `200 OK`.
 - Đã bổ sung 5 file PNG trong `evidence/buoi-02/mock-screenshots/`.

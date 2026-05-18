@@ -1,12 +1,13 @@
 openapi: 3.1.0
 info:
-  title: Smart Campus Access Policy API
+  title: Smart Campus AI Vision Detection API
   version: 1.0.0
   description: |
-    Contract-first API for Pair 10: Access Gate calls Core Business in real time
-    to check access policy before opening a campus gate.
+    Contract-first API for Pair 01: Camera Stream A2 sends frame data or image
+    metadata to AI Vision A4 for object detection in a closed smart education
+    campus environment.
   contact:
-    name: FIT4110 Lab 02 Team
+    name: Nguyen Duc Anh - 1771020050 - Nhom 4
     email: fit4110@example.edu.vn
 servers:
   - url: http://localhost:4010
@@ -16,25 +17,23 @@ servers:
 tags:
   - name: health
     description: Service health status.
-  - name: access-checks
-    description: Real-time access policy decisions.
-  - name: policies
-    description: Access policy lookup.
-  - name: decisions
-    description: Audit lookup for previous access decisions.
+  - name: vision-detections
+    description: Detect objects and retrieve detection results.
+  - name: vision-models
+    description: AI Vision model metadata.
 security:
   - bearerAuth: []
 paths:
   /health:
     get:
       operationId: getHealth
-      summary: Check service health
-      description: Returns current availability information for Core Business policy checks.
+      summary: Check AI Vision health
+      description: Returns current availability information for the AI Vision service.
       tags: [health]
       security: []
       responses:
         '200':
-          description: Service is available.
+          description: AI Vision service is available.
           content:
             application/json:
               schema:
@@ -43,17 +42,17 @@ paths:
                 ok:
                   value:
                     status: ok
-                    service: core-business-access-policy
+                    service: ai-vision
                     checkedAt: '2026-05-18T06:00:00Z'
 
-  /access/check:
+  /vision/detect:
     post:
-      operationId: checkAccessPolicy
-      summary: Check access policy
+      operationId: createVisionDetection
+      summary: Detect objects from a camera frame
       description: |
-        Access Gate sends one card or QR credential swipe to Core Business.
-        Core Business returns an allow or deny decision that the gate can apply immediately.
-      tags: [access-checks]
+        Camera Stream sends one motion-triggered frame reference or frame metadata.
+        AI Vision returns a detection id, detected objects, confidence, and risk level.
+      tags: [vision-detections]
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -62,75 +61,92 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AccessCheckRequest'
+              $ref: '#/components/schemas/DetectionRequest'
             examples:
-              cardSwipe:
+              imageUrl:
                 value:
-                  gateId: GATE-A-01
+                  cameraId: CAM-A2-001
                   campusId: CAMPUS-HCM
-                  occurredAt: '2026-05-18T06:01:30Z'
-                  direction: ENTRY
-                  subject:
-                    credentialType: CARD
-                    cardId: CARD-2026-0001
-                    holderId: STUDENT-10001
-                  device:
-                    deviceId: READER-A-01
-                    firmwareVersion: 2.4.1
-                  note: null
-              qrScan:
+                  capturedAt: '2026-05-18T06:10:15Z'
+                  motionEventId: motion-20260518-0001
+                  source:
+                    sourceType: IMAGE_URL
+                    imageUrl: https://media.smart-campus.local/frames/CAM-A2-001/2026/05/18/frame-0001.jpg
+                    checksumSha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+                  requestedModelVersion: vision-campus-v1.4
+                  callbackUrl: null
+              frameMetadata:
                 value:
-                  gateId: GATE-B-02
+                  cameraId: CAM-A2-002
                   campusId: CAMPUS-HCM
-                  occurredAt: '2026-05-18T06:05:10Z'
-                  direction: EXIT
-                  subject:
-                    credentialType: QR
-                    qrTokenHash: sha256:2ccfd7f1a8f20b1d
-                    holderId: VISITOR-5521
-                    validUntil: '2026-05-18T10:00:00Z'
-                  device:
-                    deviceId: QR-READER-B-02
-                    firmwareVersion: 1.9.0
-                  note: Visitor leaving campus
+                  capturedAt: '2026-05-18T06:12:30Z'
+                  motionEventId: motion-20260518-0002
+                  source:
+                    sourceType: FRAME_METADATA
+                    streamId: stream-main-hall-a2
+                    frameNumber: 835122
+                    storageBucket: campus-camera-frames
+                    objectKey: CAM-A2-002/2026/05/18/frame-835122.jpg
+                  requestedModelVersion: null
+                  callbackUrl: https://camera-stream.smart-campus.local/callbacks/vision
       responses:
         '200':
-          description: Policy decision created.
-          headers:
-            X-Decision-Source:
-              description: Indicates whether the decision came from live policy evaluation or cache.
-              schema:
-                type: string
-                enum: [LIVE, CACHE]
+          description: Detection completed synchronously.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccessDecision'
+                $ref: '#/components/schemas/DetectionResult'
               examples:
-                allow:
+                highRisk:
                   value:
-                    decisionId: dec_01HY5WR0W4F8M9CBR1Q2D3Z4AA
-                    allow: true
-                    reasonCode: POLICY_ALLOW
-                    reasonMessage: Card holder is active and allowed for this gate.
-                    policyId: pol_access_student_main_gate
-                    gateId: GATE-A-01
-                    subjectId: STUDENT-10001
-                    evaluatedAt: '2026-05-18T06:01:31Z'
-                    expiresAt: '2026-05-18T06:02:01Z'
-                    correlationId: corr-20260518-0001
-                deny:
+                    detectionId: det_01HY6AIVISION0000000001
+                    cameraId: CAM-A2-001
+                    motionEventId: motion-20260518-0001
+                    status: COMPLETED
+                    modelVersion: vision-campus-v1.4
+                    objects:
+                      - objectType: PERSON
+                        confidence: 0.97
+                        boundingBox:
+                          x: 0.31
+                          y: 0.22
+                          width: 0.18
+                          height: 0.44
+                        trackId: track-7781
+                      - objectType: UNKNOWN_BAG
+                        confidence: 0.88
+                        boundingBox:
+                          x: 0.58
+                          y: 0.61
+                          width: 0.12
+                          height: 0.18
+                        trackId: null
+                    overallConfidence: 0.93
+                    riskLevel: HIGH
+                    riskReason: Unknown bag detected in restricted hallway.
+                    createdAt: '2026-05-18T06:10:16Z'
+                    completedAt: '2026-05-18T06:10:17Z'
+                    correlationId: corr-20260518-vision-0001
+        '202':
+          description: Detection accepted for asynchronous processing.
+          headers:
+            Location:
+              description: URI where Camera Stream can poll the detection result.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetectionAccepted'
+              examples:
+                accepted:
                   value:
-                    decisionId: dec_01HY5WR2WTW7QXGBB6S7E8N9CC
-                    allow: false
-                    reasonCode: CARD_BLOCKED
-                    reasonMessage: Card is blocked by current campus policy.
-                    policyId: pol_access_blocked_cards
-                    gateId: GATE-A-01
-                    subjectId: STUDENT-10002
-                    evaluatedAt: '2026-05-18T06:02:00Z'
-                    expiresAt: null
-                    correlationId: corr-20260518-0002
+                    detectionId: det_01HY6AIVISION0000000002
+                    status: PENDING
+                    pollUrl: http://localhost:4010/vision/detections/det_01HY6AIVISION0000000002
+                    acceptedAt: '2026-05-18T06:12:31Z'
+                    correlationId: corr-20260518-vision-0002
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -139,118 +155,135 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /policies/access/{policyId}:
+  /vision/detections/{detectionId}:
     get:
-      operationId: getAccessPolicy
-      summary: Get access policy
-      description: Returns the policy referenced by a decision so Access Gate can audit the result.
-      tags: [policies]
+      operationId: getVisionDetection
+      summary: Get detection result
+      description: Returns one previous detection result by detection id for polling or audit.
+      tags: [vision-detections]
       parameters:
-        - $ref: '#/components/parameters/PolicyId'
+        - $ref: '#/components/parameters/DetectionId'
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Access policy detail.
+          description: Detection result detail.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccessPolicy'
+                $ref: '#/components/schemas/DetectionResult'
               examples:
-                studentMainGate:
+                completed:
                   value:
-                    policyId: pol_access_student_main_gate
-                    name: Student main gate access
+                    detectionId: det_01HY6AIVISION0000000001
+                    cameraId: CAM-A2-001
+                    motionEventId: motion-20260518-0001
+                    status: COMPLETED
+                    modelVersion: vision-campus-v1.4
+                    objects:
+                      - objectType: PERSON
+                        confidence: 0.97
+                        boundingBox:
+                          x: 0.31
+                          y: 0.22
+                          width: 0.18
+                          height: 0.44
+                        trackId: track-7781
+                    overallConfidence: 0.97
+                    riskLevel: MEDIUM
+                    riskReason: Person detected after class hours.
+                    createdAt: '2026-05-18T06:10:16Z'
+                    completedAt: '2026-05-18T06:10:17Z'
+                    correlationId: corr-20260518-vision-0001
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /vision/models/info:
+    get:
+      operationId: getVisionModelInfo
+      summary: Get AI Vision model information
+      description: Returns active model version, supported object types, and operational limits.
+      tags: [vision-models]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: AI Vision model metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisionModelInfo'
+              examples:
+                activeModel:
+                  value:
+                    modelVersion: vision-campus-v1.4
                     status: ACTIVE
-                    priority: 100
-                    allowedDirections: [ENTRY, EXIT]
-                    allowedGateIds: [GATE-A-01, GATE-A-02]
-                    validFrom: '2026-01-01T00:00:00Z'
-                    validUntil: null
-                    updatedAt: '2026-05-10T08:00:00Z'
+                    supportedSourceTypes: [IMAGE_URL, FRAME_METADATA]
+                    supportedObjectTypes: [PERSON, VEHICLE, UNKNOWN_BAG, SMOKE, FIRE]
+                    maxImageBytes: 5242880
+                    maxProcessingMs: 800
+                    updatedAt: '2026-05-15T09:00:00Z'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /decisions/{decisionId}:
+  /vision/detections/recent:
     get:
-      operationId: getAccessDecision
-      summary: Get access decision
-      description: Returns a previous decision for audit, retry reconciliation, or gate incident review.
-      tags: [decisions]
+      operationId: listRecentVisionDetections
+      summary: List recent detections
+      description: Returns recent detection summaries for Camera Stream reconciliation after retries.
+      tags: [vision-detections]
       parameters:
-        - $ref: '#/components/parameters/DecisionId'
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '200':
-          description: Access decision detail.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AccessDecision'
-              examples:
-                allow:
-                  value:
-                    decisionId: dec_01HY5WR0W4F8M9CBR1Q2D3Z4AA
-                    allow: true
-                    reasonCode: POLICY_ALLOW
-                    reasonMessage: Card holder is active and allowed for this gate.
-                    policyId: pol_access_student_main_gate
-                    gateId: GATE-A-01
-                    subjectId: STUDENT-10001
-                    evaluatedAt: '2026-05-18T06:01:31Z'
-                    expiresAt: '2026-05-18T06:02:01Z'
-                    correlationId: corr-20260518-0001
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
-  /decisions/recent:
-    get:
-      operationId: listRecentAccessDecisions
-      summary: List recent access decisions
-      description: Returns recent access decisions for gate reconciliation and operational monitoring.
-      tags: [decisions]
-      parameters:
-        - $ref: '#/components/parameters/GateIdQuery'
+        - $ref: '#/components/parameters/CameraIdQuery'
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/CorrelationId'
       responses:
         '200':
-          description: Recent decisions page.
+          description: Recent detection result page.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccessDecisionPage'
+                $ref: '#/components/schemas/DetectionResultPage'
               examples:
                 firstPage:
                   value:
                     items:
-                      - decisionId: dec_01HY5WR0W4F8M9CBR1Q2D3Z4AA
-                        allow: true
-                        reasonCode: POLICY_ALLOW
-                        reasonMessage: Card holder is active and allowed for this gate.
-                        policyId: pol_access_student_main_gate
-                        gateId: GATE-A-01
-                        subjectId: STUDENT-10001
-                        evaluatedAt: '2026-05-18T06:01:31Z'
-                        expiresAt: '2026-05-18T06:02:01Z'
-                        correlationId: corr-20260518-0001
+                      - detectionId: det_01HY6AIVISION0000000001
+                        cameraId: CAM-A2-001
+                        motionEventId: motion-20260518-0001
+                        status: COMPLETED
+                        modelVersion: vision-campus-v1.4
+                        objects:
+                          - objectType: PERSON
+                            confidence: 0.97
+                            boundingBox:
+                              x: 0.31
+                              y: 0.22
+                              width: 0.18
+                              height: 0.44
+                            trackId: track-7781
+                        overallConfidence: 0.97
+                        riskLevel: MEDIUM
+                        riskReason: Person detected after class hours.
+                        createdAt: '2026-05-18T06:10:16Z'
+                        completedAt: '2026-05-18T06:10:17Z'
+                        correlationId: corr-20260518-vision-0001
                     nextCursor: null
                     hasMore: false
         '401':
@@ -272,50 +305,41 @@ components:
       name: X-Correlation-Id
       in: header
       required: false
-      description: Correlation id used for tracing a gate transaction across services.
+      description: Correlation id used for tracing a camera frame across services.
       schema:
         type: string
         minLength: 8
         maxLength: 80
-      example: corr-20260518-0001
+      example: corr-20260518-vision-0001
     IdempotencyKey:
       name: Idempotency-Key
       in: header
       required: true
-      description: Unique key for one gate swipe or scan, used to prevent duplicate decisions on retry.
+      description: Unique key for one motion frame request, used to prevent duplicate processing on retry.
       schema:
         type: string
         minLength: 12
         maxLength: 120
-      example: idem-GATE-A-01-20260518-0001
-    PolicyId:
-      name: policyId
+      example: idem-CAM-A2-001-20260518-0001
+    DetectionId:
+      name: detectionId
       in: path
       required: true
-      description: Stable identifier of an access policy.
+      description: Stable identifier of a detection job/result.
       schema:
         type: string
-        pattern: '^pol_[a-z0-9_]+$'
-      example: pol_access_student_main_gate
-    DecisionId:
-      name: decisionId
-      in: path
-      required: true
-      description: Stable identifier of an access decision.
-      schema:
-        type: string
-        pattern: '^dec_[A-Z0-9]{26}$'
-      example: dec_01HY5WR0W4F8M9CBR1Q2D3Z4AA
-    GateIdQuery:
-      name: gateId
+        pattern: '^det_[A-Za-z0-9]+$'
+      example: det_01HY6AIVISION0000000001
+    CameraIdQuery:
+      name: cameraId
       in: query
       required: false
-      description: Filter decisions by gate id.
+      description: Filter recent detections by camera id.
       schema:
         type: string
         minLength: 3
-        maxLength: 40
-      example: GATE-A-01
+        maxLength: 60
+      example: CAM-A2-001
     Limit:
       name: limit
       in: query
@@ -350,8 +374,8 @@ components:
                 title: Bad Request
                 status: 400
                 detail: Request body is malformed or missing a required field.
-                instance: /access/check
-                correlationId: corr-20260518-0001
+                instance: /vision/detect
+                correlationId: corr-20260518-vision-0001
     Unauthorized:
       description: Bearer token is missing or invalid.
       content:
@@ -365,19 +389,25 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
     NotFound:
-      description: Requested resource does not exist.
+      description: Requested detection does not exist.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
     Conflict:
-      description: Idempotency key conflicts with a different access check payload.
+      description: Idempotency key conflicts with a different detection payload.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    PayloadTooLarge:
+      description: Image or referenced frame exceeds the negotiated size limit.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
     UnprocessableEntity:
-      description: Request is syntactically valid but violates business rules.
+      description: Request is syntactically valid but the image cannot be processed.
       content:
         application/problem+json:
           schema:
@@ -404,134 +434,158 @@ components:
           type: string
           format: date-time
 
-    AccessCheckRequest:
+    DetectionRequest:
       type: object
       additionalProperties: false
-      required: [gateId, campusId, occurredAt, direction, subject, device]
+      required: [cameraId, campusId, capturedAt, motionEventId, source, requestedModelVersion, callbackUrl]
       properties:
-        gateId:
+        cameraId:
           type: string
           minLength: 3
-          maxLength: 40
+          maxLength: 60
         campusId:
           type: string
           minLength: 3
           maxLength: 40
-        occurredAt:
+        capturedAt:
           type: string
           format: date-time
-        direction:
-          $ref: '#/components/schemas/AccessDirection'
-        subject:
-          $ref: '#/components/schemas/AccessSubject'
-        device:
-          $ref: '#/components/schemas/GateDevice'
-        note:
+        motionEventId:
+          type: string
+          minLength: 8
+          maxLength: 80
+        source:
+          $ref: '#/components/schemas/FrameSource'
+        requestedModelVersion:
           type: [string, 'null']
-          maxLength: 500
+          minLength: 3
+          maxLength: 80
+        callbackUrl:
+          type: [string, 'null']
+          format: uri
 
-    AccessSubject:
+    FrameSource:
       oneOf:
-        - $ref: '#/components/schemas/CardCredentialSubject'
-        - $ref: '#/components/schemas/QrCredentialSubject'
+        - $ref: '#/components/schemas/ImageUrlFrameSource'
+        - $ref: '#/components/schemas/FrameMetadataSource'
       discriminator:
-        propertyName: credentialType
+        propertyName: sourceType
         mapping:
-          CARD: '#/components/schemas/CardCredentialSubject'
-          QR: '#/components/schemas/QrCredentialSubject'
+          IMAGE_URL: '#/components/schemas/ImageUrlFrameSource'
+          FRAME_METADATA: '#/components/schemas/FrameMetadataSource'
 
-    CardCredentialSubject:
+    ImageUrlFrameSource:
       type: object
       additionalProperties: false
-      required: [credentialType, cardId]
+      required: [sourceType, imageUrl, checksumSha256]
       properties:
-        credentialType:
+        sourceType:
           type: string
-          const: CARD
-        cardId:
+          const: IMAGE_URL
+        imageUrl:
           type: string
-          minLength: 4
-          maxLength: 60
-        holderId:
-          type: [string, 'null']
+          format: uri
+        checksumSha256:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+
+    FrameMetadataSource:
+      type: object
+      additionalProperties: false
+      required: [sourceType, streamId, frameNumber, storageBucket, objectKey]
+      properties:
+        sourceType:
+          type: string
+          const: FRAME_METADATA
+        streamId:
+          type: string
           minLength: 3
-          maxLength: 60
-
-    QrCredentialSubject:
-      type: object
-      additionalProperties: false
-      required: [credentialType, qrTokenHash, validUntil]
-      properties:
-        credentialType:
+          maxLength: 80
+        frameNumber:
+          type: integer
+          minimum: 0
+        storageBucket:
           type: string
-          const: QR
-        qrTokenHash:
-          type: string
-          minLength: 12
+          minLength: 3
           maxLength: 120
-        holderId:
-          type: [string, 'null']
+        objectKey:
+          type: string
           minLength: 3
-          maxLength: 60
-        validUntil:
+          maxLength: 300
+
+    DetectionAccepted:
+      type: object
+      additionalProperties: false
+      required: [detectionId, status, pollUrl, acceptedAt, correlationId]
+      properties:
+        detectionId:
+          type: string
+          pattern: '^det_[A-Za-z0-9]+$'
+        status:
+          type: string
+          const: PENDING
+        pollUrl:
+          type: string
+          format: uri
+        acceptedAt:
           type: string
           format: date-time
-
-    GateDevice:
-      type: object
-      additionalProperties: false
-      required: [deviceId, firmwareVersion]
-      properties:
-        deviceId:
+        correlationId:
           type: string
-          minLength: 3
-          maxLength: 60
-        firmwareVersion:
-          type: string
-          minLength: 1
-          maxLength: 30
 
-    AccessDecision:
+    DetectionResult:
       type: object
       additionalProperties: false
       required:
-        - decisionId
-        - allow
-        - reasonCode
-        - reasonMessage
-        - policyId
-        - gateId
-        - subjectId
-        - evaluatedAt
-        - expiresAt
+        - detectionId
+        - cameraId
+        - motionEventId
+        - status
+        - modelVersion
+        - objects
+        - overallConfidence
+        - riskLevel
+        - riskReason
+        - createdAt
+        - completedAt
         - correlationId
       properties:
-        decisionId:
+        detectionId:
           type: string
-          pattern: '^dec_[A-Z0-9]{26}$'
-        allow:
-          type: boolean
-        reasonCode:
-          $ref: '#/components/schemas/DecisionReasonCode'
-        reasonMessage:
+          pattern: '^det_[A-Za-z0-9]+$'
+        cameraId:
           type: string
-          minLength: 1
-          maxLength: 300
-        policyId:
-          type: string
-          pattern: '^pol_[a-z0-9_]+$'
-        gateId:
-          type: string
-          minLength: 3
-          maxLength: 40
-        subjectId:
-          type: [string, 'null']
           minLength: 3
           maxLength: 60
-        evaluatedAt:
+        motionEventId:
+          type: string
+          minLength: 8
+          maxLength: 80
+        status:
+          type: string
+          enum: [PENDING, COMPLETED, FAILED]
+        modelVersion:
+          type: string
+          minLength: 3
+          maxLength: 80
+        objects:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/DetectedObject'
+        overallConfidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        riskLevel:
+          $ref: '#/components/schemas/RiskLevel'
+        riskReason:
+          type: [string, 'null']
+          maxLength: 300
+        createdAt:
           type: string
           format: date-time
-        expiresAt:
+        completedAt:
           type: [string, 'null']
           format: date-time
         correlationId:
@@ -539,7 +593,7 @@ components:
           minLength: 8
           maxLength: 80
 
-    AccessDecisionPage:
+    DetectionResultPage:
       type: object
       additionalProperties: false
       required: [items, nextCursor, hasMore]
@@ -548,77 +602,100 @@ components:
           type: array
           maxItems: 100
           items:
-            $ref: '#/components/schemas/AccessDecision'
+            $ref: '#/components/schemas/DetectionResult'
         nextCursor:
           type: [string, 'null']
           maxLength: 200
         hasMore:
           type: boolean
 
-    AccessPolicy:
+    DetectedObject:
+      type: object
+      additionalProperties: false
+      required: [objectType, confidence, boundingBox, trackId]
+      properties:
+        objectType:
+          $ref: '#/components/schemas/DetectedObjectType'
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        boundingBox:
+          $ref: '#/components/schemas/BoundingBox'
+        trackId:
+          type: [string, 'null']
+          minLength: 3
+          maxLength: 80
+
+    BoundingBox:
+      type: object
+      additionalProperties: false
+      required: [x, y, width, height]
+      properties:
+        x:
+          type: number
+          minimum: 0
+          maximum: 1
+        y:
+          type: number
+          minimum: 0
+          maximum: 1
+        width:
+          type: number
+          minimum: 0
+          maximum: 1
+        height:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    VisionModelInfo:
       type: object
       additionalProperties: false
       required:
-        - policyId
-        - name
+        - modelVersion
         - status
-        - priority
-        - allowedDirections
-        - allowedGateIds
-        - validFrom
-        - validUntil
+        - supportedSourceTypes
+        - supportedObjectTypes
+        - maxImageBytes
+        - maxProcessingMs
         - updatedAt
       properties:
-        policyId:
+        modelVersion:
           type: string
-          pattern: '^pol_[a-z0-9_]+$'
-        name:
-          type: string
-          minLength: 1
-          maxLength: 120
         status:
           type: string
-          enum: [DRAFT, ACTIVE, SUSPENDED, RETIRED]
-        priority:
-          type: integer
-          minimum: 1
-          maximum: 1000
-        allowedDirections:
-          type: array
-          minItems: 1
-          uniqueItems: true
-          items:
-            $ref: '#/components/schemas/AccessDirection'
-        allowedGateIds:
+          enum: [ACTIVE, DEGRADED, RETIRED]
+        supportedSourceTypes:
           type: array
           minItems: 1
           uniqueItems: true
           items:
             type: string
-        validFrom:
-          type: string
-          format: date-time
-        validUntil:
-          type: [string, 'null']
-          format: date-time
+            enum: [IMAGE_URL, FRAME_METADATA]
+        supportedObjectTypes:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/DetectedObjectType'
+        maxImageBytes:
+          type: integer
+          minimum: 1
+        maxProcessingMs:
+          type: integer
+          minimum: 1
         updatedAt:
           type: string
           format: date-time
 
-    AccessDirection:
+    DetectedObjectType:
       type: string
-      enum: [ENTRY, EXIT]
+      enum: [PERSON, VEHICLE, UNKNOWN_BAG, SMOKE, FIRE]
 
-    DecisionReasonCode:
+    RiskLevel:
       type: string
-      enum:
-        - POLICY_ALLOW
-        - POLICY_DENY
-        - CARD_BLOCKED
-        - QR_EXPIRED
-        - GATE_NOT_ALLOWED
-        - OUTSIDE_ALLOWED_TIME
-        - POLICY_UNAVAILABLE
+      enum: [LOW, MEDIUM, HIGH, CRITICAL]
 
     Problem:
       type: object

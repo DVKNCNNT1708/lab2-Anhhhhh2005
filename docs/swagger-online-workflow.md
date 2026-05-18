@@ -65,7 +65,7 @@ Mở terminal thứ hai và gọi thử:
 
 ```bash
 curl -i http://localhost:4010/health
-curl -i http://localhost:4010/alerts/recent -H "Authorization: Bearer test-token"
+curl -i http://localhost:4010/vision/models/info -H "Authorization: Bearer test-token"
 ```
 
 Hoặc chạy script mẫu:
