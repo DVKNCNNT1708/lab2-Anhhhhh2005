@@ -1,7 +1,5 @@
 # Known Issues — Lab 02
 
-Ghi các lỗi còn tồn tại nếu chưa xử lý xong.
-
 | Lỗi | Ảnh hưởng | Cách xử lý dự kiến | Người phụ trách |
 |---|---|---|---|
-|  |  |  |  |
+| Không có lỗi tồn tại | Không áp dụng | Không áp dụng | Nhóm nộp bài |
